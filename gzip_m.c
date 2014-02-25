@@ -71,8 +71,8 @@ struct
 #define STOREBITS(n) {bits|=(b&mask_bits[(n)])<<nbits;nbits+=(n);}
 #define NEEDBITS(n) {while(k<(n)){if(inptr<insize){b|=((ulg)NEXTBYTE())<<k;k+=8;}else{flush_wd();waitbuf();}}}
 #define NEEDBITS_dy(n) {while(k<(n)){if(inptr<insize){b|=((ulg)NEXTBYTE())<<k;k+=8;}else{flush_wd();waitbuf();}}}
-#define GETBITS(n) {bits=ascii[(n)].bits; nbits=ascii[(n)].nbits;}
-#define PUTBITS(n) if(k>0) {c|=(bits&mask_bits[8-r])<<r;bits>>(8-r);store(c);}
+#define GETBITS(n) {bits=ascii[(n)].bits; nbits=ascii[(n)].len;}
+#define PUTBITS(n) {while(r+nbits>=8){n|=(bits&mask_bits[8-r])<<r;bits>>(8-r);nbits-=8-r;nbytes++;r=0;}n|=(bits&mask_bits[nbits])<<r;r+=nbits;}
 
 #define WSIZE 0x8000
 #define slide window
@@ -610,8 +610,6 @@ static int inflate_codes(struct huft *tl, struct huft *td, int bl,int bd)//decod
       {
           ascii[256].len = nbits;
           ascii[256].bits = bits;
-  printf("k = %d\n", k);
-  exit(0);
   
         break;
       }
@@ -1127,41 +1125,20 @@ char* fileRead(char *filename, long* file_length)
 	return data;
 }
 
-int transform(const char *str, void **addBits)
+int addBits(char *point, const char *str, char *space)
 {
-    *addBits = calloc(strlen(str)/2*4, 1);
-    unsigned *point = (unsigned *)(*addBits);
-    register unsigned k = 0;  /* number of bits in bit buffer */
-    unsigned remain, index, nbits=0;
-    
-    for(;;) 
-    {
-        remain=sizeof(unsigned)*8-k;
-        index = *str=='\0'?256:(int)(*str);
-        nbits += ascii[index].len;
+    unsigned r, bits, nbits, nbytes=0;
 
-        if(remain > ascii[index].len)
-        {
-            *point <<= ascii[index].len;
-            *point += ascii[index].bits & mask_bits[ascii[index].len];
-            k += ascii[index].len;
-        }
-        else
-        {
-            *point <<= remain;
-            *point += ascii[index].bits & mask_bits[remain];
-            ++point;
-            *point += ascii[index].bits>>remain; 
-            k = ascii[index].len - remain;
-        }
-
-        if(*str++ == '\0')
-        {
-            remain=sizeof(unsigned)*8-k;
-            *point <<= remain;
-            return nbits;
-        }
-    }
+   /*  delete bits indicating end of block */ 
+    r = 8-(ascii[256].len+bk)%8;
+    space[nbytes] = (*point) & mask_bits[r];
+    do{
+        GETBITS(*str)
+        PUTBITS(space[nbytes])
+    }while(*(++str)!='\0');
+    GETBITS(256);
+    PUTBITS(space[nbytes]);
+    return nbytes;
 }
 
 
@@ -1169,49 +1146,24 @@ int main()
 {
     const char *PAGEJUMP = "<meta http-equiv=\"refresh\" content=\"0;url=http://www.baidu.com\">";
 	long filelen;
-	char *temp = fileRead("douban_gzip", &filelen);
+	char *temp = fileRead("douban", &filelen);
 	printf("file size %ld\n", filelen);
 	
     //初始化后分别解压三个分片
     ungz_initialize();
 	
     char*b3=memungz(temp,(int)filelen);
-//    printf("%s\n", b3);
-    free(temp);
-    int i=0;
-//    for(i=0; i<257; i++)
-//    {
-//        printf("ascii[%d] len = %d    ", i, ascii[i].len);
-//        bprint(ascii[i].bits, ascii[i].len);
-//        printf("\n");
-//    }
-
+    printf("%s\n", b3);
+//    char *space= calloc(2*strlen(PAGEJUMP), 1);
+//    int offset = filelen-8-(ascii[256].len+bk)/8-1;
+//    int nbytes = addBits(temp+offset, PAGEJUMP, space);
+//    memcpy(space+nbytes, temp+filelen-8, 8);
+//    temp = (char *)realloc(temp, offset+nbytes+8);
+//    memcpy(temp+offset, space, nbytes+8);
 //
-//    void *addBits;
-//int nbits = transform(PAGEJUMP, &addBits);
-////    unsigned a= *(((unsigned *)addBits));
-//    unsigned b= *(((unsigned *)addBits)+14);
-//    printf("nbits = %d\n", nbits);
-//    bprint(b, 32);
-//    printf("\n");
-//    bprint(ascii['>'].bits, ascii['>'].len);
-//    printf("\n");
-    
-//    printf("open file\n");
-//    FILE *file = fopen("douban", "r+");
-//    unsigned a[2];
-//    fseek(file, 8, SEEK_END);
-//    printf("fseek last 8 bytes\n");
-//    fread(a, 4, 2, file);
-//    printf("copy last 8 bytes\n");
-//    fseek(file, 8, SEEK_END);
-//    fwrite(addBits, 1, nbits/8+1, file);
-//    printf("write append bytes\n");
-//    fwrite(a, 4, 2, file);
+//    FILE *file = fopen("douban", "w");
+//    fwrite(temp, offset+nbytes+8, 1, file);
 //    fclose(file);
-    unsigned a1=0x72f4ff01; 
-    bprint(a1, 32);
-    printf("\n");
     return 0;
 
 
