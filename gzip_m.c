@@ -72,7 +72,7 @@ struct
 #define NEEDBITS(n) {while(k<(n)){if(inptr<insize){b|=((ulg)NEXTBYTE())<<k;k+=8;}else{flush_wd();waitbuf();}}}
 #define NEEDBITS_dy(n) {while(k<(n)){if(inptr<insize){b|=((ulg)NEXTBYTE())<<k;k+=8;}else{flush_wd();waitbuf();}}}
 #define GETBITS(n) {bits=ascii[(n)].bits; nbits=ascii[(n)].len;}
-#define PUTBITS(n) {while(r+nbits>=8){n|=(bits&mask_bits[8-r])<<r;bits>>(8-r);nbits-=8-r;nbytes++;r=0;}n|=(bits&mask_bits[nbits])<<r;r+=nbits;}
+#define PUTBITS(n) {while(r+nbits>=8){n|=(bits&mask_bits[8-r])<<r;bits>>=(8-r);nbits-=8-r;nbytes++;r=0;}n|=(bits&mask_bits[nbits])<<r;r+=nbits;}
 
 #define WSIZE 0x8000
 #define slide window
@@ -1138,7 +1138,7 @@ int addBits(char *point, const char *str, char *space)
     }while(*(++str)!='\0');
     GETBITS(256);
     PUTBITS(space[nbytes]);
-    return nbytes;
+    return nbytes+1;
 }
 
 
