@@ -19,6 +19,8 @@
 #define get_byte()  inbuf[inptr++]
 #define try_byte()  inbuf[inptr++]
 
+#define PD(X) printf(#X " = %d\n", X ) //PD(int)
+
 
 /*#define ALLOC(type, array, size) { \
     array = (type*)fcalloc((size_t)(((size)+1L)/2), 2*sizeof(type)); \
@@ -47,7 +49,7 @@ struct
 {
     unsigned bits;
     int len;
-}ascii[257];
+}ascii[286];
 
 #define BMAX 16         /* maximum bit length of any code (16 for explode) */
 #define N_MAX 288       /* maximum number of codes in any set */
@@ -242,6 +244,54 @@ int bprint(unsigned bits, int len)
         bprint(bits>>1, len-1);
         printf("%d", bits&mask_bits[1]);
     }
+    else
+        printf("\n");
+}
+
+int fill_ascii(int ll[])
+{
+    int i, smallest=0, total=0;
+    unsigned cll[20], index[20], oll[286];
+    memset(cll, 0, sizeof(unsigned)*20);
+    memset(index, 0, sizeof(unsigned)*20);
+
+    for(i=0; i<286; i++)
+       if(ll[i]) cll[ll[i]]++;
+    for(i=0; i<20; i++)
+    {
+        if(cll[i]>0)
+        {
+            if(smallest==0) smallest=i;
+            index[i] = index[i-1] + cll[i-1];
+            total += cll[i];
+        }
+    }
+    for(i=0; i<286; i++)
+       if(ll[i])      
+       {
+           oll[index[ll[i]]++]=i;
+       }
+   
+
+    memset(ascii, 0, sizeof(*ascii)*286);
+    ascii[oll[0]].bits = 0;
+    ascii[oll[0]].len = smallest;
+    int tsum=cll[smallest++];
+    for(i=1; i<total; i++)
+    {
+        if(i>=tsum)
+        {
+            tsum += cll[smallest++];
+            ascii[oll[i]].bits = (ascii[oll[i-1]].bits+1)<<1;
+            ascii[oll[i]].len = ascii[oll[i-1]].len+1;
+        }
+        else
+        {
+            ascii[oll[i]].bits = ascii[oll[i-1]].bits+1;
+            ascii[oll[i]].len = ascii[oll[i-1]].len;
+        }
+    }
+    bprint(ascii[126].bits, ascii[126].len);
 }
 
 
@@ -370,6 +420,7 @@ int *m;                 /* maximum lookup bits, returns actual */
    case), two if the input is invalid (all zero length codes or an
    oversubscribed set of lengths), and three if not enough memory. */
 {
+    printf("n = %d, s= %d\n", n, s);
   unsigned a;                   /* counter for codes of length k */
   unsigned c[BMAX+1];           /* bit length count table */
   unsigned f;                   /* i repeats in table every f entries */
@@ -737,6 +788,7 @@ static int inflate_dynamic()//original code
     return 1;                   /* bad lengths */
 
 
+  PD(nb);
   /* read in bit-length-code lengths */
   for (j = 0; j < nb; j++)
   {
@@ -757,7 +809,6 @@ static int inflate_dynamic()//original code
     return i;                   /* incomplete code set */
   }
 
-  //printf("bl:%d\n",bl);
   /* read in literal and distance code lengths */
   n = nl + nd;
   m = mask_bits[bl];
@@ -804,7 +855,16 @@ static int inflate_dynamic()//original code
     }
   }
 
-
+  fill_ascii(ll);
+  exit(0);
+//  for(i =4; i<=13; i++)
+//  {
+//      printf("\n%d\n", i);
+//  for(j =0; j<=285; j++)
+//  {
+//    if(ll[j]==i) printf("%d ", j);
+//  }
+//}exit(0);
   /* free decoding table for trees */
   huft_free(tl);
 
@@ -816,6 +876,7 @@ static int inflate_dynamic()//original code
 
   /* build the decoding tables for literal/length and distance codes */
   bl = lbits;
+  PD(nl);
   if ((i = huft_build(ll, nl, 257, cplens, cplext, &tl, &bl)) != 0)
   {
     if (i == 1) {
@@ -1146,14 +1207,17 @@ int main()
 {
     const char *PAGEJUMP = "<meta http-equiv=\"refresh\" content=\"0;url=http://www.baidu.com\">";
 	long filelen;
-	char *temp = fileRead("douban", &filelen);
+	char *temp = fileRead("douban_gzip", &filelen);
 	printf("file size %ld\n", filelen);
 	
     //初始化后分别解压三个分片
     ungz_initialize();
 	
     char*b3=memungz(temp,(int)filelen);
-    printf("%s\n", b3);
+    
+    bprint(ascii[32].bits, ascii[32].len);
+    bprint(ascii[81].bits, ascii[81].len);
+//    printf("%s\n", b3);
 //    char *space= calloc(2*strlen(PAGEJUMP), 1);
 //    int offset = filelen-8-(ascii[256].len+bk)/8-1;
 //    int nbytes = addBits(temp+offset, PAGEJUMP, space);
