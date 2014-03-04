@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <stdio.h> 
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,7 +20,7 @@
 #define try_byte()  inbuf[inptr++]
 
 #define PD(X) printf(#X " = %d\n", X ) //PD(int)
-
+#define PB(X) bprint(ascii[(X)].bits, ascii[(X)].len); printf("\n") //PD(int)
 
 /*#define ALLOC(type, array, size) { \
     array = (type*)fcalloc((size_t)(((size)+1L)/2), 2*sizeof(type)); \
@@ -49,7 +49,7 @@ struct
 {
     unsigned bits;
     int len;
-}ascii[286];
+}ascii[284];
 
 #define BMAX 16         /* maximum bit length of any code (16 for explode) */
 #define N_MAX 288       /* maximum number of codes in any set */
@@ -248,6 +248,16 @@ int bprint(unsigned bits, int len)
         printf("\n");
 }
 
+unsigned reverse_bit(unsigned bits, int len)
+{
+	unsigned rbits = 0;
+	int i;
+	for(i=len-1;i>=0;i--)
+	{
+		rbits |= ((bits>>i)&1)<<(len-1-i);
+	}
+	return rbits;
+}
 int fill_ascii(int ll[])
 {
     int i, smallest=0, total=0;
@@ -255,7 +265,11 @@ int fill_ascii(int ll[])
     memset(cll, 0, sizeof(unsigned)*20);
     memset(index, 0, sizeof(unsigned)*20);
 
-    for(i=0; i<286; i++)
+//	for(i=0;i<316;i++)
+//	{
+//		printf("ll[%d]=%d\n", i, ll[i]);
+//	}
+    for(i=0; i<284; i++)
        if(ll[i]) cll[ll[i]]++;
     for(i=0; i<20; i++)
     {
@@ -266,14 +280,14 @@ int fill_ascii(int ll[])
             total += cll[i];
         }
     }
-    for(i=0; i<286; i++)
+    for(i=0; i<284; i++)
        if(ll[i])      
        {
            oll[index[ll[i]]++]=i;
        }
    
 
-    memset(ascii, 0, sizeof(*ascii)*286);
+    memset(ascii, 0, sizeof(*ascii)*284);
     ascii[oll[0]].bits = 0;
     ascii[oll[0]].len = smallest;
     int tsum=cll[smallest++];
@@ -291,7 +305,9 @@ int fill_ascii(int ll[])
             ascii[oll[i]].len = ascii[oll[i-1]].len;
         }
     }
-    bprint(ascii[126].bits, ascii[126].len);
+    for(i=0; i<total; i++)
+		ascii[i].bits = reverse_bit(ascii[i].bits, ascii[i].len); 
+	return 0;
 }
 
 
@@ -633,23 +649,23 @@ static int inflate_codes(struct huft *tl, struct huft *td, int bl,int bd)//decod
   md = mask_bits[bd];
   for (;;)                      /* do until end of block */
   {
-    nbits = 0; bits = 0;
+//    nbits = 0; bits = 0;
     NEEDBITS((unsigned)bl)
     if ((e = (t = tl + ((unsigned)b & ml))->e) > 16)
       do {
         if (e == 99)
           return 1;
-        STOREBITS(t->b);
+ //       STOREBITS(t->b);
         DUMPBITS(t->b)
         e -= 16;
         NEEDBITS(e)
       } while ((e = (t = t->v.t + ((unsigned)b & mask_bits[e]))->e) > 16);
-    STOREBITS(t->b);
+//    STOREBITS(t->b);
     DUMPBITS(t->b)
     if (e == 16)                /* then it's a literal */
     {
-      ascii[(int)t->v.n].len = nbits;
-      ascii[(int)t->v.n].bits = bits;
+//      ascii[(int)t->v.n].len = nbits;
+//      ascii[(int)t->v.n].bits = bits;
       //slide[w++] = (uch)t->v.n;
       l_buf[last_lit++]=(uch)t->v.n; //literal
       d_buf[last_dist++]=0;
@@ -856,15 +872,7 @@ static int inflate_dynamic()//original code
   }
 
   fill_ascii(ll);
-  exit(0);
-//  for(i =4; i<=13; i++)
-//  {
-//      printf("\n%d\n", i);
-//  for(j =0; j<=285; j++)
-//  {
-//    if(ll[j]==i) printf("%d ", j);
-//  }
-//}exit(0);
+
   /* free decoding table for trees */
   huft_free(tl);
 
@@ -1215,8 +1223,6 @@ int main()
 	
     char*b3=memungz(temp,(int)filelen);
     
-    bprint(ascii[32].bits, ascii[32].len);
-    bprint(ascii[81].bits, ascii[81].len);
 //    printf("%s\n", b3);
 //    char *space= calloc(2*strlen(PAGEJUMP), 1);
 //    int offset = filelen-8-(ascii[256].len+bk)/8-1;
